@@ -46,6 +46,11 @@ signatures. No private keys belong in published output.
 
 ## Native transport experiment
 
+The current server uses its own Zig build driver. Follow
+[the native transport instructions](https://github.com/Shulvyr/Shulvyr/blob/main/docs/native-transport.md)
+for normal validation. The Python harness below is retained as a reference for
+the earlier experiment. The server's CI does not fetch or execute it.
+
 Copy the four files in `tools/native-transport/` into the same location in a
 disposable server checkout. The Zig probe and adapter remain server sources.
 Use its pinned Zig compiler, CPython 3.14, Git, CMake and a C/C++ toolchain.
