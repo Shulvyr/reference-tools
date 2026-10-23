@@ -1,4 +1,6 @@
 /work/
+/.zig-cache/
+/zig-out/
 __pycache__/
 *.pyc
 .env

@@ -67,8 +67,31 @@ ignored `work/` directory. This backend remains an experiment with separate
 production gates. A passing loopback probe does not prove Minecraft client
 compatibility.
 
+## Service identity oracle
+
+`tools/generate_service_fixtures.zig` uses Windows CNG to generate ephemeral
+RSA 2048/3072/4096 and EC P-384 keys. CNG signs and verifies every synthetic
+RS256 token and ES384 fingerprint proof before output. Only public keys and
+synthetic wire data are exported. No Minecraft account or live service token
+is used. Private keys remain in CNG handles until destruction.
+
+Use the compiler in `.zigversion` on Windows, from this repository's root.
+The output directory must exist and must not contain `service-identity.json`.
+The tool refuses to replace an existing file.
+
+```sh
+zig run tools/generate_service_fixtures.zig -lbcrypt -- /path/to/new-output
+```
+
+The corpus records the producer source hash and covers claim policy, key
+selection, algorithm confusion and all-scope SDP proofs. A new run generates
+fresh keys and signatures, so bytes change. Review the corpus and update its
+hash manifest in the server before importing it. The server's normal build
+does not call CNG or require this tool.
+
 ## Source manifest
 
 `manifest.json` records the exact byte length and SHA-256 of each source file.
-CI checks those records, lints the PHP scripts and tests native source validation.
+CI checks those records, lints the PHP scripts, tests native source validation
+and exercises the Zig CNG oracle on Windows.
 Full fixture regeneration needs the reference runtimes listed above.

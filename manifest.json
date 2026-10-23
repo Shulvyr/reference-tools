@@ -52,6 +52,10 @@
     "tools/native-transport/sources.json": {
       "bytes": 1435,
       "sha256": "0e7d48f515972143831fcde6058335f11d18e80a29f4673adfdfda606b4cf21b"
+    },
+    "tools/generate_service_fixtures.zig": {
+      "bytes": 15072,
+      "sha256": "8aff06527adaa0bc03acfb624ec1b8399cdea8b9c5c8c3e2820cfd420e7cfde0"
     }
   }
 }

@@ -20,7 +20,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $manifest = Get-Content -LiteralPath manifest.json -Raw | ConvertFrom-Json
-          if ($manifest.schema -ne 1 -or @($manifest.files.PSObject.Properties).Count -ne 13) { throw 'Unexpected source manifest' }
+          if ($manifest.schema -ne 1 -or @($manifest.files.PSObject.Properties).Count -ne 14) { throw 'Unexpected source manifest' }
           foreach ($entry in $manifest.files.PSObject.Properties) {
             $path = $entry.Name
             $actual = Get-FileHash -LiteralPath $path -Algorithm SHA256
@@ -35,3 +35,37 @@ jobs:
           python-version: '3.14'
       - name: Test native source validation
         run: python tools/native-transport/test_build_probe.py
+
+  cng:
+    name: Zig CNG oracle
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/install-zig
+      - name: Check Zig formatting
+        run: zig fmt --check tools/generate_service_fixtures.zig
+      - name: Generate and verify independent signatures
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Path work/cng-first -Force | Out-Null
+          New-Item -ItemType Directory -Path work/cng-second -Force | Out-Null
+          & zig run tools/generate_service_fixtures.zig -lbcrypt -- work/cng-first
+          if ($LASTEXITCODE -ne 0) { throw 'First CNG generation failed' }
+          & zig run tools/generate_service_fixtures.zig -lbcrypt -- work/cng-second
+          if ($LASTEXITCODE -ne 0) { throw 'Second CNG generation failed' }
+          $first = Get-Content -LiteralPath work/cng-first/service-identity.json -Raw | ConvertFrom-Json
+          $second = Get-Content -LiteralPath work/cng-second/service-identity.json -Raw | ConvertFrom-Json
+          if ($first.schema -ne 1 -or $first.cases.Count -ne 26 -or $second.cases.Count -ne 26 -or $first.jwks.keys.Count -ne 3) { throw 'Unexpected CNG corpus' }
+          if (-not $first.producer.signatures_verified_by_producer -or -not $second.producer.signatures_verified_by_producer) { throw 'Missing native verification' }
+          if ($first.jwks.keys[0].n -eq $second.jwks.keys[0].n) { throw 'Expected fresh ephemeral RSA keys' }
+          $source = (Get-FileHash -LiteralPath tools/generate_service_fixtures.zig -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($first.producer.source_sha256 -cne $source -or $second.producer.source_sha256 -cne $source) { throw 'Producer source mismatch' }
+          foreach ($key in $first.jwks.keys) {
+            foreach ($privateField in @('d','p','q','dp','dq','qi','oth','k')) {
+              if ($key.PSObject.Properties.Name -contains $privateField) { throw 'Private JWK material in corpus' }
+            }
+          }
