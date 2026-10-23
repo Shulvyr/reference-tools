@@ -70,7 +70,7 @@ compatibility.
 ## Service identity oracle
 
 `tools/generate_service_fixtures.zig` uses Windows CNG to generate ephemeral
-RSA 2048/3072/4096 and EC P-384 keys. CNG signs and verifies every synthetic
+RSA 2048/3072/4096 and EC P-384 keys. CNG hashes, signs and verifies every synthetic
 RS256 token and ES384 fingerprint proof before output. Only public keys and
 synthetic wire data are exported. No Minecraft account or live service token
 is used. Private keys remain in CNG handles until destruction.

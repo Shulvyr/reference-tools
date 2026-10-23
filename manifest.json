@@ -54,8 +54,8 @@
       "sha256": "0e7d48f515972143831fcde6058335f11d18e80a29f4673adfdfda606b4cf21b"
     },
     "tools/generate_service_fixtures.zig": {
-      "bytes": 15275,
-      "sha256": "480b63b5b29e91483c488156bec4ac4d2ed369ea31ab1c0fdfd5a7bf2e167ace"
+      "bytes": 15483,
+      "sha256": "bfad3b433e47b29428eba62aee89f30f2394ce231166730172e6d377742b35f0"
     }
   }
 }

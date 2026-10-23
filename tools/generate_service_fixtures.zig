@@ -17,6 +17,7 @@ extern "bcrypt" fn BCryptDestroyKey(*anyopaque) callconv(.winapi) i32;
 extern "bcrypt" fn BCryptExportKey(*anyopaque, ?*anyopaque, [*:0]const u16, [*]u8, u32, *u32, u32) callconv(.winapi) i32;
 extern "bcrypt" fn BCryptSignHash(*anyopaque, ?*const anyopaque, [*]const u8, u32, [*]u8, u32, *u32, u32) callconv(.winapi) i32;
 extern "bcrypt" fn BCryptVerifySignature(*anyopaque, ?*const anyopaque, [*]const u8, u32, [*]const u8, u32, u32) callconv(.winapi) i32;
+extern "bcrypt" fn BCryptHash(*anyopaque, ?[*]const u8, u32, [*]const u8, u32, [*]u8, u32) callconv(.winapi) i32;
 const Padding = extern struct { algorithm: [*:0]const u16 };
 
 fn check(status: i32) !void {
@@ -82,13 +83,11 @@ const Key = struct {
 
     fn sign(self: *const Key, allocator: Allocator, input: []const u8) ![]const u8 {
         var hash: [48]u8 = undefined;
-        const digest = if (self.rsa) blk: {
-            std.crypto.hash.sha2.Sha256.hash(input, hash[0..32], .{});
-            break :blk hash[0..32];
-        } else blk: {
-            std.crypto.hash.sha2.Sha384.hash(input, &hash, .{});
-            break :blk hash[0..48];
-        };
+        var hashing: ?*anyopaque = null;
+        try check(BCryptOpenAlgorithmProvider(&hashing, if (self.rsa) w("SHA256") else w("SHA384"), null, 0));
+        defer closeProvider(hashing.?);
+        const digest = hash[0..@as(usize, if (self.rsa) 32 else 48)];
+        try check(BCryptHash(hashing.?, null, 0, input.ptr, @intCast(input.len), digest.ptr, @intCast(digest.len)));
         const padding: Padding = .{ .algorithm = w("SHA256") };
         const pointer: ?*const anyopaque = if (self.rsa) &padding else null;
         const flags: u32 = if (self.rsa) 2 else 0;
