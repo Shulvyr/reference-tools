@@ -1,0 +1,37 @@
+name: Verify reference tools
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Verify source manifest
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $manifest = Get-Content -LiteralPath manifest.json -Raw | ConvertFrom-Json
+          if ($manifest.schema -ne 1 -or @($manifest.files.PSObject.Properties).Count -ne 13) { throw 'Unexpected source manifest' }
+          foreach ($entry in $manifest.files.PSObject.Properties) {
+            $path = $entry.Name
+            $actual = Get-FileHash -LiteralPath $path -Algorithm SHA256
+            if ($actual.Hash.ToLowerInvariant() -ne $entry.Value.sha256 -or (Get-Item -LiteralPath $path).Length -ne $entry.Value.bytes) { throw "Source mismatch: $path" }
+          }
+      - name: Lint fixture generators
+        run: |
+          php --version
+          for file in tools/generate_*_fixtures.php; do php -l "$file"; done
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14'
+      - name: Test native source validation
+        run: python tools/native-transport/test_build_probe.py
