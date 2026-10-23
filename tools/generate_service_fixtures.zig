@@ -23,6 +23,14 @@ fn check(status: i32) !void {
     if (status < 0) return error.CngFailed;
 }
 
+fn closeProvider(provider: *anyopaque) void {
+    check(BCryptCloseAlgorithmProvider(provider, 0)) catch @panic("CNG provider cleanup failed");
+}
+
+fn destroyKey(handle: *anyopaque) void {
+    check(BCryptDestroyKey(handle)) catch @panic("CNG key cleanup failed");
+}
+
 // Private keys exist only in CNG handles. This tool exports public blobs only.
 const Key = struct {
     provider: *anyopaque,
@@ -32,17 +40,17 @@ const Key = struct {
     fn create(rsa: bool, bits: u32) !Key {
         var provider: ?*anyopaque = null;
         try check(BCryptOpenAlgorithmProvider(&provider, if (rsa) w("RSA") else w("ECDSA_P384"), null, 0));
-        errdefer _ = BCryptCloseAlgorithmProvider(provider.?, 0);
+        errdefer closeProvider(provider.?);
         var handle: ?*anyopaque = null;
         try check(BCryptGenerateKeyPair(provider.?, &handle, bits, 0));
-        errdefer _ = BCryptDestroyKey(handle.?);
+        errdefer destroyKey(handle.?);
         try check(BCryptFinalizeKeyPair(handle.?, 0));
         return .{ .provider = provider.?, .handle = handle.?, .rsa = rsa };
     }
 
     fn deinit(self: *Key) void {
-        _ = BCryptDestroyKey(self.handle);
-        _ = BCryptCloseAlgorithmProvider(self.provider, 0);
+        destroyKey(self.handle);
+        closeProvider(self.provider);
         self.* = undefined;
     }
 
